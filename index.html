@@ -1,0 +1,890 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>AI Image Authenticity Analyzer</title>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=JetBrains+Mono:wght@400;600&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --cyan:#00e5ff;--green:#00ff88;--red:#ff1744;--amber:#ffab00;--purple:#d500f9;
+  --bg0:#020408;--bg1:#060d18;--bg2:#0a1628;--bg3:#0f2040;
+  --b1:rgba(0,229,255,0.12);--b2:rgba(0,229,255,0.25);
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg0);color:#e2e8f0;font-family:'DM Sans',sans-serif;min-height:100vh;overflow-x:hidden}
+body::before{content:'';position:fixed;inset:0;
+  background-image:linear-gradient(rgba(0,229,255,0.022) 1px,transparent 1px),
+  linear-gradient(90deg,rgba(0,229,255,0.022) 1px,transparent 1px);
+  background-size:48px 48px;pointer-events:none;z-index:0}
+body::after{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at center,transparent 40%,rgba(2,4,8,0.75) 100%);pointer-events:none;z-index:0}
+#app{position:relative;z-index:1;min-height:100vh}
+::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:var(--bg1)}::-webkit-scrollbar-thumb{background:var(--cyan);border-radius:2px}
+
+/* ── GLASS ── */
+.glass{background:rgba(6,13,24,0.82);backdrop-filter:blur(18px);border:1px solid var(--b2);border-radius:16px}
+
+/* ── HEADER ── */
+header{position:sticky;top:0;z-index:200;background:rgba(2,4,8,0.92);backdrop-filter:blur(20px);border-bottom:1px solid var(--b1)}
+.hdr{max-width:1300px;margin:0 auto;padding:.75rem 2rem;display:flex;align-items:center;justify-content:space-between}
+.logo{display:flex;align-items:center;gap:.7rem;cursor:pointer;text-decoration:none}
+.lhex{font-size:1.9rem;color:var(--cyan);filter:drop-shadow(0 0 10px var(--cyan));animation:glowpulse 3s ease-in-out infinite}
+.lname{font-family:'Orbitron',monospace;font-size:.95rem;font-weight:900;letter-spacing:.1em;color:#e2e8f0}
+.lname span{color:var(--cyan)}
+.lsub{font-family:'JetBrains Mono',monospace;font-size:.48rem;color:rgba(100,150,200,.5);letter-spacing:.2em}
+.hbadge{font-family:'JetBrains Mono',monospace;font-size:.6rem;padding:.18rem .55rem;border-radius:3px;background:rgba(0,255,136,.08);color:var(--green);border:1px solid rgba(0,255,136,.25);letter-spacing:.08em}
+.nav{display:flex;gap:.4rem;align-items:center}
+.nbtn{font-family:'JetBrains Mono',monospace;font-size:.68rem;letter-spacing:.1em;padding:.32rem .75rem;border-radius:6px;border:1px solid var(--b1);background:transparent;color:rgba(150,180,220,.7);cursor:pointer;transition:all .2s}
+.nbtn:hover,.nbtn.act{border-color:var(--b2);color:var(--cyan);background:rgba(0,229,255,.07)}
+
+/* ── PAGES ── */
+.page{display:none;animation:fadeUp .45s ease}
+.page.active{display:block}
+
+/* ── UPLOAD PAGE ── */
+.hero{text-align:center;padding:3rem 1rem 2.5rem;max-width:700px;margin:0 auto}
+.htag{display:inline-block;margin-bottom:1rem;padding:.28rem .9rem;border-radius:3px;border:1px solid rgba(0,229,255,.3);background:rgba(0,229,255,.06);font-family:'JetBrains Mono',monospace;font-size:.66rem;color:var(--cyan);letter-spacing:.25em}
+.htitle{font-family:'Orbitron',monospace;font-size:clamp(1.7rem,4vw,2.9rem);font-weight:900;line-height:1.2;margin-bottom:1rem}
+.hgrad{background:linear-gradient(135deg,var(--cyan),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hdesc{color:rgba(150,180,220,.75);line-height:1.7;font-size:.95rem}
+.ucard{max-width:700px;margin:0 auto 2rem;padding:2rem}
+.dz{border:2px dashed var(--b2);border-radius:12px;min-height:220px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .25s;background:rgba(10,22,40,.4);overflow:hidden;position:relative;margin-bottom:1.5rem}
+.dz:hover,.dz.over{border-color:var(--cyan);background:rgba(0,229,255,.04);box-shadow:inset 0 0 30px rgba(0,229,255,.06)}
+.dz-content{text-align:center;padding:2rem;pointer-events:none}
+.dz-icon{font-size:2.8rem;color:rgba(0,229,255,.28);margin-bottom:.9rem}
+.dz-title{font-family:'Orbitron',monospace;font-size:.88rem;color:rgba(150,180,220,.8);margin-bottom:.4rem;letter-spacing:.05em}
+.dz-sub{font-family:'JetBrains Mono',monospace;font-size:.68rem;color:rgba(100,130,170,.6)}
+.prev-img{width:100%;max-height:300px;object-fit:cover;display:block}
+.scan-line{position:absolute;left:0;right:0;height:2px;background:linear-gradient(90deg,transparent,var(--cyan),transparent);animation:scan 2.5s linear infinite;pointer-events:none}
+.prev-info{position:absolute;bottom:.7rem;left:.7rem;font-family:'JetBrains Mono',monospace;font-size:.63rem;color:var(--cyan);background:rgba(2,4,8,.88);border:1px solid rgba(0,229,255,.3);padding:.18rem .5rem;border-radius:3px}
+.brow{display:flex;gap:.7rem;margin-bottom:1.5rem}
+.banalyze{flex:1;display:flex;align-items:center;justify-content:center;gap:.55rem;background:linear-gradient(135deg,#00b8d4,#00e5ff);color:#000;border:none;border-radius:10px;padding:.85rem 1.4rem;cursor:pointer;font-family:'Orbitron',monospace;font-size:.78rem;font-weight:700;letter-spacing:.1em;box-shadow:0 0 22px rgba(0,229,255,.3);transition:all .2s}
+.banalyze:hover{transform:translateY(-2px);box-shadow:0 0 32px rgba(0,229,255,.5)}
+.banalyze:disabled{opacity:.5;cursor:not-allowed;transform:none}
+.bclear{background:rgba(10,22,40,.8);color:rgba(150,180,220,.7);border:1px solid var(--b2);border-radius:10px;padding:.85rem 1.1rem;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:.7rem;transition:all .2s}
+.bclear:hover{color:var(--cyan);border-color:var(--cyan)}
+.feats{display:flex;gap:.5rem;flex-wrap:wrap}
+.feat{flex:1;min-width:110px;display:flex;align-items:center;justify-content:center;gap:.4rem;padding:.42rem .6rem;border-radius:7px;font-family:'JetBrains Mono',monospace;font-size:.66rem;border:1px solid}
+.fc{color:var(--cyan);border-color:rgba(0,229,255,.25);background:rgba(0,229,255,.07)}
+.fa{color:var(--amber);border-color:rgba(255,171,0,.25);background:rgba(255,171,0,.07)}
+.fp{color:var(--purple);border-color:rgba(213,0,249,.25);background:rgba(213,0,249,.07)}
+.fg{color:var(--green);border-color:rgba(0,255,136,.25);background:rgba(0,255,136,.07)}
+.errbx{background:rgba(255,23,68,.1);border:1px solid rgba(255,23,68,.3);color:var(--red);padding:.65rem .9rem;border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:.75rem;margin-bottom:1rem}
+
+/* ── LOADER ── */
+.loader{display:flex;align-items:center;justify-content:center;min-height:70vh}
+.lcard{text-align:center;padding:3rem 3.5rem;max-width:420px;width:100%}
+.spinner{position:relative;width:88px;height:88px;margin:0 auto 1.8rem;display:flex;align-items:center;justify-content:center}
+.ring{position:absolute;border-radius:50%;border:2px solid transparent}
+.r1{inset:0;border-top-color:var(--cyan);animation:spin 1.2s linear infinite}
+.r2{inset:10px;border-top-color:var(--purple);animation:spin .85s linear infinite reverse}
+.r3{inset:20px;border-top-color:var(--amber);animation:spin 1.7s linear infinite}
+.sicon{font-family:'Orbitron',monospace;font-size:1.3rem;color:var(--cyan);filter:drop-shadow(0 0 8px var(--cyan));z-index:1}
+.ltitle{font-family:'Orbitron',monospace;font-size:1.05rem;font-weight:900;letter-spacing:.2em;margin-bottom:1.4rem}
+.blink{animation:blink 1s step-end infinite;color:var(--cyan)}
+.ptrack{height:4px;background:var(--bg3);border-radius:2px;overflow:hidden;margin-bottom:.38rem}
+.pfill{height:100%;background:linear-gradient(90deg,#00b8d4,#00e5ff);border-radius:2px;box-shadow:0 0 8px var(--cyan);transition:width 2s ease;width:0}
+.ppct{font-family:'JetBrains Mono',monospace;font-size:.68rem;color:var(--cyan);text-align:right;margin-bottom:1.4rem}
+.steps{display:flex;flex-direction:column;gap:.38rem;text-align:left;margin-bottom:1.4rem}
+.step{display:flex;align-items:center;gap:.65rem;padding:.38rem .6rem;border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:.7rem;transition:all .3s;border:1px solid transparent}
+.step.done{color:var(--green)}
+.step.cur{color:var(--cyan);background:rgba(0,229,255,.07);border-color:rgba(0,229,255,.2)}
+.step.wait{color:rgba(100,130,170,.4)}
+.sdot{width:1.1rem;text-align:center;flex-shrink:0}
+.spulse{margin-left:auto;width:6px;height:6px;border-radius:50%;background:var(--cyan);animation:blink .8s ease infinite}
+.lnote{font-family:'JetBrains Mono',monospace;font-size:.66rem;color:rgba(100,130,170,.5)}
+
+/* ── RESULT ── */
+.rtopbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.4rem;flex-wrap:wrap;gap:.7rem}
+.backbtn{display:flex;align-items:center;gap:.45rem;background:rgba(10,22,40,.8);border:1px solid var(--b2);color:rgba(150,180,220,.7);padding:.45rem .9rem;border-radius:8px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:.7rem;transition:all .2s}
+.backbtn:hover{color:var(--cyan);border-color:var(--cyan)}
+.vtag{display:flex;align-items:center;gap:.35rem;padding:.3rem .8rem;border-radius:4px;font-family:'Orbitron',monospace;font-size:.7rem;font-weight:700;letter-spacing:.08em}
+.vdot{width:6px;height:6px;border-radius:50%;background:currentColor;animation:blink 1.5s ease infinite}
+.expbtn{padding:.3rem .8rem;border-radius:4px;border:1px solid rgba(0,255,136,.3);background:rgba(0,255,136,.08);color:var(--green);cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:.66rem}
+.vbanner{margin-bottom:1.4rem;padding:1rem 1.4rem}
+.vbanner-title{font-family:'Orbitron',monospace;font-size:clamp(.9rem,2vw,1.15rem);font-weight:900;margin-bottom:.3rem}
+.vbanner-sub{font-family:'JetBrains Mono',monospace;font-size:.7rem;color:rgba(150,180,220,.7)}
+.rgrid{display:grid;grid-template-columns:1fr 1fr;gap:1.4rem}
+@media(max-width:900px){.rgrid{grid-template-columns:1fr}}
+.viewer{overflow:hidden}
+.vdisp{position:relative;background:#000;min-height:320px;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.vimg{width:100%;max-height:370px;object-fit:contain;display:block}
+.vlbl{position:absolute;bottom:.7rem;left:.7rem;font-family:'JetBrains Mono',monospace;font-size:.62rem;color:var(--cyan);background:rgba(2,4,8,.88);border:1px solid rgba(0,229,255,.3);padding:.18rem .48rem;border-radius:3px}
+.corner{position:absolute;width:13px;height:13px;border-color:var(--cyan);border-style:solid}
+.tl{top:7px;left:7px;border-width:1px 0 0 1px}
+.tr{top:7px;right:7px;border-width:1px 1px 0 0}
+.bl{bottom:7px;left:7px;border-width:0 0 1px 1px}
+.br{bottom:7px;right:7px;border-width:0 1px 1px 0}
+.itabs{display:flex;flex-wrap:wrap;border-top:1px solid rgba(0,229,255,.1)}
+.itab{flex:1;min-width:65px;padding:.48rem .3rem;border:none;background:transparent;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:.6rem;border-right:1px solid rgba(0,229,255,.07);transition:all .2s}
+.itab.act{background:rgba(0,229,255,.1);color:var(--cyan)}
+.itab:not(.act){color:rgba(100,130,170,.6)}
+.apanel{padding:1.4rem;display:flex;flex-direction:column;gap:1rem;max-height:580px;overflow-y:auto}
+.scard{border-radius:12px;padding:1.1rem;display:flex;align-items:center;justify-content:space-between;border-left:3px solid}
+.slabel{font-family:'JetBrains Mono',monospace;font-size:.6rem;color:rgba(100,130,170,.7);letter-spacing:.12em;margin-bottom:.28rem}
+.snum{font-family:'Orbitron',monospace;font-size:2.6rem;font-weight:900;line-height:1}
+.sunit{font-size:1.1rem;opacity:.7}
+.qstats{display:flex;align-items:center;background:var(--bg3);border:1px solid var(--b1);border-radius:10px;overflow:hidden}
+.qs{flex:1;text-align:center;padding:.75rem .4rem}
+.qsv{font-family:'Orbitron',monospace;font-size:1.2rem;font-weight:700}
+.qsl{font-family:'JetBrains Mono',monospace;font-size:.58rem;color:rgba(100,130,170,.6);letter-spacing:.1em;margin-top:2px}
+.qsd{width:1px;height:38px;background:var(--b2)}
+.tabs{display:flex;gap:.22rem;flex-wrap:wrap}
+.tab{padding:.38rem .75rem;border-radius:6px;border:1px solid var(--b1);background:transparent;color:rgba(100,130,170,.6);cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:.68rem;transition:all .2s}
+.tab.act{background:rgba(0,229,255,.08);color:var(--cyan);border-color:rgba(0,229,255,.3)}
+.tab:hover:not(.act){color:rgba(150,180,220,.8);border-color:var(--b2)}
+.tbody{flex:1}
+.secttitle{font-family:'JetBrains Mono',monospace;font-size:.6rem;color:rgba(100,130,170,.5);letter-spacing:.14em;margin-bottom:.65rem}
+.brow2{display:flex;align-items:center;gap:.65rem;margin-bottom:.5rem}
+.bname{font-family:'JetBrains Mono',monospace;font-size:.68rem;color:rgba(150,180,220,.8);min-width:130px}
+.btrack{flex:1;height:5px;background:rgba(15,32,64,1);border-radius:3px;overflow:hidden}
+.bfill{height:100%;border-radius:3px;transition:width .8s ease}
+.bval{font-family:'JetBrains Mono',monospace;font-size:.68rem;min-width:34px;text-align:right}
+.rtag{font-family:'JetBrains Mono',monospace;font-size:.58rem;padding:.08rem .38rem;border-radius:3px;min-width:34px;text-align:center}
+.rtag.hi{background:rgba(255,23,68,.15);color:var(--red);border:1px solid rgba(255,23,68,.3)}
+.rtag.med{background:rgba(255,171,0,.15);color:var(--amber);border:1px solid rgba(255,171,0,.3)}
+.rtag.lo{background:rgba(0,255,136,.12);color:var(--green);border:1px solid rgba(0,255,136,.3)}
+.mrow{display:flex;justify-content:space-between;align-items:center;padding:.42rem .7rem;background:rgba(10,22,40,.5);border:1px solid var(--b1);border-radius:6px;margin-bottom:.3rem}
+.mkey{font-family:'JetBrains Mono',monospace;font-size:.66rem;color:rgba(100,130,170,.7);text-transform:capitalize}
+.mval{font-family:'JetBrains Mono',monospace;font-size:.66rem;font-weight:600}
+.frow{display:flex;gap:.45rem;align-items:flex-start;padding:.45rem .7rem;border-radius:6px;margin-bottom:.35rem;border:1px solid}
+.frow.warn{background:rgba(255,171,0,.07);border-color:rgba(255,171,0,.22)}
+.frow.danger{background:rgba(255,23,68,.07);border-color:rgba(255,23,68,.22)}
+.frow.info{background:rgba(0,229,255,.05);border-color:rgba(0,229,255,.18)}
+.ficon{font-size:.85rem;flex-shrink:0;margin-top:.05rem}
+.ftext{font-family:'JetBrains Mono',monospace;font-size:.66rem;color:rgba(200,210,230,.85);line-height:1.45}
+.rbox{background:rgba(10,22,40,.6);border-radius:10px;padding:.9rem;border:1px solid var(--b1)}
+.gencard{background:rgba(10,22,40,.8);border:1px solid var(--b2);border-radius:10px;padding:.9rem;margin-bottom:.75rem}
+.genname{font-family:'Orbitron',monospace;font-size:.95rem;font-weight:700;color:var(--cyan);margin-bottom:.22rem}
+.gendesc{font-family:'JetBrains Mono',monospace;font-size:.68rem;color:rgba(150,180,220,.7);margin-bottom:.3rem}
+.genconf{font-family:'JetBrains Mono',monospace;font-size:.63rem;color:var(--amber)}
+.palette{display:flex;gap:.42rem;margin-top:.65rem;flex-wrap:wrap}
+.swatch{width:30px;height:30px;border-radius:5px;border:1px solid var(--b2);cursor:pointer;transition:transform .15s}
+.swatch:hover{transform:scale(1.2)}
+.reasonbox{background:rgba(10,22,40,.6);border:1px solid rgba(255,171,0,.18);border-radius:10px;padding:.9rem}
+.reason{font-family:'JetBrains Mono',monospace;font-size:.66rem;color:rgba(200,210,230,.85);margin-bottom:.32rem;padding-left:.5rem;border-left:2px solid var(--amber);line-height:1.45}
+.synthbox{border-radius:10px;padding:1rem;margin-bottom:.7rem;border:1px solid}
+.synthbox.detected{background:rgba(255,23,68,.07);border-color:rgba(255,23,68,.3)}
+.synthbox.clean{background:rgba(0,255,136,.05);border-color:rgba(0,255,136,.25)}
+.synthstatus{font-family:'Orbitron',monospace;font-size:.82rem;font-weight:700;margin-bottom:.25rem}
+.synthnote{font-family:'JetBrains Mono',monospace;font-size:.66rem;color:rgba(150,180,220,.65);line-height:1.5;margin-top:.5rem}
+.dualbar{margin-top:.5rem}
+.dblabel{display:flex;justify-content:space-between;font-family:'JetBrains Mono',monospace;font-size:.68rem;color:rgba(100,130,170,.6);margin-bottom:.28rem}
+.dbtrack{height:8px;background:var(--bg3);border-radius:4px;overflow:hidden;display:flex}
+.dbreal{height:100%;background:var(--green);border-radius:4px 0 0 4px;transition:width .8s ease}
+.dbai{height:100%;background:var(--red);border-radius:0 4px 4px 0;transition:width .8s ease;margin-left:auto}
+.chartbox{background:var(--bg3);border-radius:10px;padding:1rem;border:1px solid var(--b1)}
+
+/* ── HISTORY ── */
+.hpage{max-width:900px;margin:0 auto;padding:2rem}
+.hitem{display:flex;align-items:center;gap:.9rem;padding:.85rem 1.1rem;margin-bottom:.55rem;border-left:3px solid}
+.hfname{font-family:'JetBrains Mono',monospace;font-size:.78rem;color:rgba(200,210,230,.9);margin-bottom:.18rem}
+.htime{font-family:'JetBrains Mono',monospace;font-size:.6rem;color:rgba(100,130,170,.5)}
+.hscore{font-family:'Orbitron',monospace;font-size:1.05rem;font-weight:700}
+.hcat{font-family:'JetBrains Mono',monospace;font-size:.6rem;padding:.2rem .55rem;border-radius:4px}
+
+/* ── LOGIN ── */
+.loginwrap{display:flex;align-items:center;justify-content:center;min-height:70vh;padding:2rem}
+.logincard{padding:2.5rem;width:100%;max-width:390px}
+.ltitle{font-family:'Orbitron',monospace;font-size:1.05rem;font-weight:900;text-align:center;margin-bottom:.35rem}
+.ltitle span{color:var(--cyan)}
+.lsub2{font-family:'JetBrains Mono',monospace;font-size:.62rem;color:rgba(100,130,170,.5);letter-spacing:.15em;text-align:center;margin-bottom:2rem}
+.finp{width:100%;padding:.7rem .9rem;background:rgba(10,22,40,.8);border:1px solid var(--b2);border-radius:8px;color:#e2e8f0;font-family:'JetBrains Mono',monospace;font-size:.82rem;outline:none;margin-bottom:.9rem;transition:border-color .2s}
+.finp:focus{border-color:var(--cyan)}
+.lbtn{width:100%;padding:.82rem;background:linear-gradient(135deg,#00b8d4,#00e5ff);color:#000;border:none;border-radius:8px;cursor:pointer;font-family:'Orbitron',monospace;font-size:.78rem;font-weight:700;letter-spacing:.1em;box-shadow:0 0 20px rgba(0,229,255,.3);transition:all .2s;margin-bottom:.9rem}
+.lbtn:hover{box-shadow:0 0 30px rgba(0,229,255,.5)}
+.ldemo{font-family:'JetBrains Mono',monospace;font-size:.62rem;color:rgba(100,130,170,.4);text-align:center}
+
+/* ── ANIMATIONS ── */
+@keyframes fadeUp{from{opacity:0;transform:translateY(22px)}to{opacity:1;transform:translateY(0)}}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+@keyframes scan{0%{top:-2px}100%{top:100%}}
+@keyframes glowpulse{0%,100%{filter:drop-shadow(0 0 6px var(--cyan))}50%{filter:drop-shadow(0 0 18px var(--cyan))}}
+@keyframes barfill{from{width:0}}
+.animated{animation:barfill .8s ease}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- HEADER -->
+<header>
+  <div class="hdr">
+    <a class="logo" onclick="showPage('upload')">
+      <span class="lhex">⬡</span>
+      <div>
+        <div class="lname">AI<span>TRUTH</span></div>
+        <div class="lsub">IMAGE FORENSICS ENGINE</div>
+      </div>
+    </a>
+    <div style="display:flex;align-items:center;gap:.75rem">
+      <span class="hbadge">● ONLINE</span>
+      <nav class="nav">
+        <button class="nbtn act" id="nav-upload" onclick="showPage('upload')">ANALYZE</button>
+        <button class="nbtn" id="nav-history" onclick="showPage('history');loadHistory()">HISTORY</button>
+        <button class="nbtn" id="nav-login" onclick="showPage('login')" style="color:var(--green);border-color:rgba(0,255,136,.25)">LOGIN</button>
+      </nav>
+    </div>
+  </div>
+</header>
+
+<!-- UPLOAD PAGE -->
+<div class="page active" id="page-upload">
+  <div class="main" style="max-width:1300px;margin:0 auto;padding:1.5rem 2rem">
+    <div class="hero">
+      <div class="htag">FORENSIC ANALYSIS ENGINE v4.0</div>
+      <h1 class="htitle">AI Image <span class="hgrad">Authenticity</span> Analyzer</h1>
+      <p class="hdesc">Deep forensic analysis using SynthID watermark detection, EXIF metadata, ELA, noise patterns, and GAN fingerprinting to determine image authenticity.</p>
+    </div>
+
+    <div class="ucard glass">
+      <!-- Dropzone -->
+      <div class="dz" id="dropzone"
+        ondragover="dzOver(event)" ondragleave="dzLeave(event)" ondrop="dzDrop(event)"
+        onclick="document.getElementById('fileinput').click()">
+        <input type="file" id="fileinput" accept="image/*" style="display:none" onchange="fileSelected(event)"/>
+        <div class="dz-content" id="dz-placeholder">
+          <div class="dz-icon">⊙</div>
+          <div class="dz-title">DRAG & DROP IMAGE</div>
+          <div class="dz-sub">or click to browse · JPG PNG WEBP · max 20MB</div>
+        </div>
+        <div id="dz-preview" style="display:none;width:100%;position:relative">
+          <img id="preview-img" class="prev-img"/>
+          <div class="scan-line"></div>
+          <div class="prev-info" id="prev-info"></div>
+        </div>
+      </div>
+
+      <div id="errbx" class="errbx" style="display:none"></div>
+
+      <div id="btn-row" class="brow" style="display:none">
+        <button class="banalyze" id="analyze-btn" onclick="runAnalysis()">◈ &nbsp;RUN ANALYSIS →</button>
+        <button class="bclear" onclick="clearAll()">CLEAR</button>
+      </div>
+
+      <!-- Features -->
+      <div class="feats">
+        <div class="feat fc"><span>◈</span><span>AI Detection</span></div>
+        <div class="feat fa"><span>◉</span><span>ELA Analysis</span></div>
+        <div class="feat fp"><span>⊛</span><span>SynthID Check</span></div>
+        <div class="feat fg"><span>◎</span><span>Reconstruct</span></div>
+      </div>
+    </div>
+
+    <!-- Info cards -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;max-width:700px;margin:0 auto">
+      <div class="glass" style="padding:1.2rem;text-align:center">
+        <div style="font-size:1.6rem;margin-bottom:.5rem">🔍</div>
+        <div style="font-family:'Orbitron',monospace;font-size:.72rem;font-weight:700;color:var(--cyan);margin-bottom:.35rem">7-Layer Analysis</div>
+        <div style="font-size:.75rem;color:rgba(150,180,220,.65);line-height:1.5">Noise, ELA, SynthID, metadata, texture, frequency, GAN fingerprint</div>
+      </div>
+      <div class="glass" style="padding:1.2rem;text-align:center">
+        <div style="font-size:1.6rem;margin-bottom:.5rem">🛡️</div>
+        <div style="font-family:'Orbitron',monospace;font-size:.72rem;font-weight:700;color:var(--purple);margin-bottom:.35rem">SynthID Detection</div>
+        <div style="font-size:.75rem;color:rgba(150,180,220,.65);line-height:1.5">LSB watermark & frequency domain analysis for AI signatures</div>
+      </div>
+      <div class="glass" style="padding:1.2rem;text-align:center">
+        <div style="font-size:1.6rem;margin-bottom:.5rem">📊</div>
+        <div style="font-family:'Orbitron',monospace;font-size:.72rem;font-weight:700;color:var(--amber);margin-bottom:.35rem">Metadata Forensics</div>
+        <div style="font-size:.75rem;color:rgba(150,180,220,.65);line-height:1.5">EXIF analysis — camera info, timestamps, software signatures</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- LOADER PAGE -->
+<div class="page" id="page-loader">
+  <div class="loader">
+    <div class="glass lcard">
+      <div class="spinner">
+        <div class="ring r1"></div>
+        <div class="ring r2"></div>
+        <div class="ring r3"></div>
+        <span class="sicon">⬡</span>
+      </div>
+      <div class="ltitle">ANALYZING<span class="blink">_</span></div>
+      <div class="ptrack"><div class="pfill" id="pfill"></div></div>
+      <div class="ppct" id="ppct">0%</div>
+      <div class="steps" id="steps"></div>
+      <div class="lnote">Deep forensic analysis in progress…</div>
+    </div>
+  </div>
+</div>
+
+<!-- RESULT PAGE -->
+<div class="page" id="page-result">
+  <div style="max-width:1300px;margin:0 auto;padding:1.5rem 2rem">
+    <div class="rtopbar">
+      <button class="backbtn" onclick="showPage('upload');clearAll()">← NEW ANALYSIS</button>
+      <div style="display:flex;align-items:center;gap:.65rem;flex-wrap:wrap">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:.62rem;color:rgba(100,130,170,.55)" id="r-scanid"></span>
+        <div class="vtag" id="r-vtag"><span class="vdot"></span><span id="r-category"></span></div>
+        <button class="expbtn" onclick="exportReport()">↓ EXPORT REPORT</button>
+      </div>
+    </div>
+
+    <!-- Verdict banner -->
+    <div class="glass vbanner" id="r-banner">
+      <div class="vbanner-title" id="r-verdict"></div>
+      <div class="vbanner-sub" id="r-bannersub"></div>
+    </div>
+
+    <div class="rgrid">
+      <!-- Image Viewer -->
+      <div class="glass viewer">
+        <div class="vdisp" id="vdisp">
+          <img id="vimg" class="vimg" src="" alt=""/>
+          <div class="vlbl" id="vlbl">Original</div>
+          <div class="corner tl"></div><div class="corner tr"></div>
+          <div class="corner bl"></div><div class="corner br"></div>
+        </div>
+        <div class="itabs" id="itabs"></div>
+      </div>
+
+      <!-- Analysis Panel -->
+      <div class="glass apanel">
+        <!-- Score card -->
+        <div class="scard" id="scard">
+          <div>
+            <div class="slabel">AI PROBABILITY</div>
+            <div class="snum" id="snum">0<span class="sunit">%</span></div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-family:'JetBrains Mono',monospace;font-size:.6rem;color:rgba(100,130,170,.6);margin-bottom:.2rem">REAL SCORE</div>
+            <div style="font-family:'Orbitron',monospace;font-size:1.4rem;font-weight:700;color:var(--green)" id="real-score">0%</div>
+          </div>
+        </div>
+
+        <!-- Quick stats -->
+        <div class="qstats">
+          <div class="qs"><div class="qsv" id="qs-region" style="color:var(--amber)">0%</div><div class="qsl">AI REGION</div></div>
+          <div class="qsd"></div>
+          <div class="qs"><div class="qsv" id="qs-risk" style="color:var(--red)">0%</div><div class="qsl">COMBINED</div></div>
+          <div class="qsd"></div>
+          <div class="qs"><div class="qsv" id="qs-conf" style="color:var(--cyan)">0%</div><div class="qsl">CONFIDENCE</div></div>
+          <div class="qsd"></div>
+          <div class="qs"><div class="qsv" id="qs-meta" style="color:var(--purple)">0%</div><div class="qsl">META RISK</div></div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs" id="atabs">
+          <button class="tab act" onclick="switchTab('overview',this)">Overview</button>
+          <button class="tab" onclick="switchTab('synthid',this)">SynthID</button>
+          <button class="tab" onclick="switchTab('metadata',this)">Metadata</button>
+          <button class="tab" onclick="switchTab('regions',this)">Regions</button>
+          <button class="tab" onclick="switchTab('breakdown',this)">AI Content</button>
+          <button class="tab" onclick="switchTab('metrics',this)">Metrics</button>
+        </div>
+
+        <!-- Tab body -->
+        <div class="tbody" id="tabcontent"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- HISTORY PAGE -->
+<div class="page" id="page-history">
+  <div class="hpage">
+    <div style="font-family:'Orbitron',monospace;font-size:1.1rem;font-weight:900;margin-bottom:.4rem">SCAN <span style="color:var(--cyan)">HISTORY</span></div>
+    <div style="font-family:'JetBrains Mono',monospace;font-size:.68rem;color:rgba(100,130,170,.55);margin-bottom:1.8rem" id="h-count">0 scans</div>
+    <div id="h-list"></div>
+  </div>
+</div>
+
+<!-- LOGIN PAGE -->
+<div class="page" id="page-login">
+  <div class="loginwrap">
+    <div class="glass logincard">
+      <div class="ltitle">SECURE <span>LOGIN</span></div>
+      <div class="lsub2">FORENSIC ACCESS REQUIRED</div>
+      <input class="finp" type="text" id="lu" placeholder="USERNAME" value="admin"/>
+      <input class="finp" type="password" id="lp" placeholder="PASSWORD" value="forensics2025" onkeydown="if(event.key==='Enter')doLogin()"/>
+      <div id="lerr" style="display:none;color:var(--red);font-family:'JetBrains Mono',monospace;font-size:.72rem;margin-bottom:.8rem;text-align:center"></div>
+      <button class="lbtn" onclick="doLogin()">ACCESS SYSTEM →</button>
+      <div class="ldemo">Demo credentials: admin / forensics2025</div>
+    </div>
+  </div>
+</div>
+
+</div><!-- #app -->
+
+<script>
+const API = 'http://localhost:8000';
+let currentResult = null;
+let currentFile = null;
+let loaderTimer = null;
+let chartInstance = null;
+
+// ── PAGE NAVIGATION ───────────────────────────────────────────
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.querySelectorAll('.nbtn').forEach(b => b.classList.remove('act'));
+  const nb = document.getElementById('nav-' + name);
+  if (nb) nb.classList.add('act');
+  window.scrollTo(0, 0);
+}
+
+// ── DROPZONE ──────────────────────────────────────────────────
+function dzOver(e) { e.preventDefault(); document.getElementById('dropzone').classList.add('over'); }
+function dzLeave(e) { document.getElementById('dropzone').classList.remove('over'); }
+function dzDrop(e) {
+  e.preventDefault();
+  document.getElementById('dropzone').classList.remove('over');
+  const f = e.dataTransfer.files[0];
+  if (f) setFile(f);
+}
+function fileSelected(e) { const f = e.target.files[0]; if (f) setFile(f); }
+
+function setFile(f) {
+  if (!f.type.startsWith('image/')) { showErr('Please upload an image file (JPG, PNG, WebP)'); return; }
+  if (f.size > 20*1024*1024) { showErr('File too large. Max 20MB.'); return; }
+  currentFile = f;
+  hideErr();
+  const reader = new FileReader();
+  reader.onload = e => {
+    document.getElementById('preview-img').src = e.target.result;
+    document.getElementById('prev-info').textContent = f.name + ' · ' + (f.size/1024).toFixed(1) + 'KB';
+    document.getElementById('dz-placeholder').style.display = 'none';
+    document.getElementById('dz-preview').style.display = 'block';
+    document.getElementById('btn-row').style.display = 'flex';
+  };
+  reader.readAsDataURL(f);
+}
+
+function clearAll() {
+  currentFile = null;
+  document.getElementById('preview-img').src = '';
+  document.getElementById('dz-placeholder').style.display = 'block';
+  document.getElementById('dz-preview').style.display = 'none';
+  document.getElementById('btn-row').style.display = 'none';
+  document.getElementById('fileinput').value = '';
+  hideErr();
+}
+
+function showErr(msg) {
+  const e = document.getElementById('errbx');
+  e.textContent = '⚠ ' + msg;
+  e.style.display = 'block';
+}
+function hideErr() { document.getElementById('errbx').style.display = 'none'; }
+
+// ── LOADER ────────────────────────────────────────────────────
+const STEPS = [
+  {label:'Loading image data', icon:'◈'},
+  {label:'Running ELA analysis', icon:'◉'},
+  {label:'SynthID watermark scan', icon:'⊛'},
+  {label:'EXIF metadata analysis', icon:'◇'},
+  {label:'GAN fingerprint check', icon:'◆'},
+  {label:'Generating heatmaps', icon:'⬡'},
+  {label:'Reconstruction pass', icon:'◎'},
+];
+
+function startLoader() {
+  showPage('loader');
+  let step = 0, prog = 0;
+  renderSteps(step);
+  loaderTimer = setInterval(() => {
+    step = Math.min(step + 1, STEPS.length);
+    prog = Math.min(prog + 100/STEPS.length, 100);
+    renderSteps(step);
+    document.getElementById('pfill').style.width = prog + '%';
+    document.getElementById('ppct').textContent = Math.round(prog) + '%';
+  }, 2000);
+}
+
+function stopLoader() {
+  if (loaderTimer) { clearInterval(loaderTimer); loaderTimer = null; }
+}
+
+function renderSteps(cur) {
+  const html = STEPS.map((s, i) =>
+    `<div class="step ${i < cur ? 'done' : i === cur ? 'cur' : 'wait'}">
+      <span class="sdot">${i < cur ? '✓' : s.icon}</span>
+      <span>${s.label}</span>
+      ${i === cur ? '<span class="spulse"></span>' : ''}
+    </div>`
+  ).join('');
+  document.getElementById('steps').innerHTML = html;
+}
+
+// ── ANALYSIS ──────────────────────────────────────────────────
+async function runAnalysis() {
+  if (!currentFile) return;
+  document.getElementById('analyze-btn').disabled = true;
+  hideErr();
+  startLoader();
+  try {
+    const fd = new FormData();
+    fd.append('file', currentFile);
+    const res = await fetch(API + '/analyze', { method: 'POST', body: fd });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || 'Analysis failed');
+    }
+    currentResult = await res.json();
+    stopLoader();
+    renderResult(currentResult);
+    showPage('result');
+  } catch (e) {
+    stopLoader();
+    showPage('upload');
+    showErr(e.message || 'Analysis failed. Is backend running on port 8000?');
+  } finally {
+    document.getElementById('analyze-btn').disabled = false;
+  }
+}
+
+// ── RENDER RESULT ─────────────────────────────────────────────
+function renderResult(r) {
+  const det = r.detection;
+  const sc = det.ai_score;
+  const color = det.category_color === 'red' ? 'var(--red)' : det.category_color === 'amber' ? 'var(--amber)' : 'var(--green)';
+
+  // Scan ID
+  document.getElementById('r-scanid').textContent = 'ID: ' + r.scan_id;
+
+  // Verdict tag
+  const vtag = document.getElementById('r-vtag');
+  vtag.style.background = det.category_color === 'red' ? 'rgba(255,23,68,.15)' : det.category_color === 'amber' ? 'rgba(255,171,0,.15)' : 'rgba(0,255,136,.12)';
+  vtag.style.color = color;
+  vtag.style.border = `1px solid ${color}40`;
+  document.getElementById('r-category').textContent = det.category.toUpperCase();
+
+  // Banner
+  const banner = document.getElementById('r-banner');
+  banner.style.borderColor = color + '50';
+  banner.style.background = det.category_color === 'red' ? 'rgba(255,23,68,.06)' : det.category_color === 'amber' ? 'rgba(255,171,0,.06)' : 'rgba(0,255,136,.04)';
+  document.getElementById('r-verdict').textContent = det.verdict;
+  document.getElementById('r-verdict').style.color = color;
+  document.getElementById('r-bannersub').textContent =
+    `Combined risk: ${r.combined_risk_score}% · SynthID: ${r.synthid_analysis.classification} · Scanned: ${new Date(r.timestamp).toLocaleString()}`;
+
+  // Score card
+  document.getElementById('snum').textContent = sc;
+  document.getElementById('snum').style.color = color;
+  document.getElementById('snum').innerHTML = sc + '<span class="sunit">%</span>';
+  const scard = document.getElementById('scard');
+  scard.style.borderLeftColor = color;
+  scard.style.background = det.category_color === 'red' ? 'rgba(255,23,68,.07)' : det.category_color === 'amber' ? 'rgba(255,171,0,.07)' : 'rgba(0,255,136,.05)';
+  document.getElementById('real-score').textContent = det.real_score + '%';
+
+  // Quick stats
+  document.getElementById('qs-region').textContent = r.ai_region_pct + '%';
+  document.getElementById('qs-risk').textContent = r.combined_risk_score + '%';
+  document.getElementById('qs-conf').textContent = det.confidence + '%';
+  document.getElementById('qs-meta').textContent = r.metadata_analysis.metadata_risk + '%';
+
+  // Image tabs
+  const imgs = [
+    {key:'original_b64', label:'Original'},
+    {key:'heatmap_b64',  label:'Heatmap'},
+    {key:'overlay_b64',  label:'Overlay'},
+    {key:'ela_b64',      label:'ELA'},
+    {key:'anomaly_b64',  label:'Anomaly'},
+    {key:'reconstructed_b64', label:'Restored'},
+  ];
+  document.getElementById('itabs').innerHTML = imgs.map((img, i) =>
+    `<button class="itab ${i===0?'act':''}" onclick="switchImg(this,'${img.key}','${img.label}')">${img.label}</button>`
+  ).join('');
+  switchImg(document.querySelector('.itab.act'), 'original_b64', 'Original');
+
+  // Default tab
+  switchTab('overview', document.querySelector('.tab.act'));
+}
+
+function switchImg(btn, key, label) {
+  document.querySelectorAll('.itab').forEach(b => b.classList.remove('act'));
+  btn.classList.add('act');
+  const data = currentResult[key];
+  if (data) {
+    document.getElementById('vimg').src = 'data:image/png;base64,' + data;
+    document.getElementById('vlbl').textContent = label;
+  }
+}
+
+// ── TAB RENDERING ─────────────────────────────────────────────
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('act'));
+  if (btn) btn.classList.add('act');
+  const r = currentResult;
+  const det = r.detection;
+  const color = det.category_color === 'red' ? 'var(--red)' : det.category_color === 'amber' ? 'var(--amber)' : 'var(--green)';
+  const tc = document.getElementById('tabcontent');
+
+  if (name === 'overview') {
+    const bars = [
+      {label:'AI Probability', val:det.ai_score, color},
+      {label:'Real Score',     val:det.real_score, color:'var(--green)'},
+      {label:'Confidence',     val:det.confidence, color:'var(--cyan)'},
+      {label:'Combined Risk',  val:r.combined_risk_score, color:'var(--purple)'},
+      {label:'AI Region %',    val:r.ai_region_pct, color:'var(--amber)'},
+    ];
+    tc.innerHTML = `
+      <div class="secttitle" style="margin-top:.2rem">DETECTION SUMMARY</div>
+      ${bars.map(b => barRow(b.label, b.val, b.color)).join('')}
+      <div class="dualbar" style="margin-top:.9rem">
+        <div class="dblabel"><span>REAL</span><span>AI</span></div>
+        <div class="dbtrack">
+          <div class="dbreal animated" style="width:${det.real_score}%"></div>
+          <div class="dbai animated" style="width:${det.ai_score}%"></div>
+        </div>
+        <div class="dblabel" style="margin-top:.25rem">
+          <span style="color:var(--green)">${det.real_score}%</span>
+          <span style="color:var(--red)">${det.ai_score}%</span>
+        </div>
+      </div>
+      ${det.reasons.length ? `
+        <div class="secttitle" style="margin-top:1rem">WHY FLAGGED</div>
+        <div class="reasonbox">${det.reasons.map(rn => `<div class="reason">${rn}</div>`).join('')}</div>
+      ` : ''}`;
+  }
+
+  else if (name === 'synthid') {
+    const s = r.synthid_analysis;
+    const det2 = s.watermark_detected;
+    tc.innerHTML = `
+      <div class="synthbox ${det2 ? 'detected' : 'clean'}">
+        <div class="synthstatus" style="color:${det2 ? 'var(--red)' : 'var(--green)'}">${det2 ? '⚠ WATERMARK DETECTED' : '✓ NO WATERMARK FOUND'}</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:.68rem;color:rgba(150,180,220,.7)">${s.classification}</div>
+      </div>
+      <div class="secttitle">SYNTHID METRICS</div>
+      ${metaRow('SynthID Score', s.synthid_score + '%', det2 ? 'var(--red)' : 'var(--green)')}
+      ${metaRow('LSB Mean', s.lsb_mean, 'var(--cyan)')}
+      ${metaRow('LSB Std Dev', s.lsb_std, 'var(--cyan)')}
+      ${metaRow('R-G Correlation', s.channel_correlation_rg, 'var(--amber)')}
+      ${metaRow('Spatial Periodicity', s.spatial_periodicity, 'var(--cyan)')}
+      ${metaRow('Histogram Smoothness', s.histogram_smoothness, 'var(--cyan)')}
+      ${s.findings.length ? `
+        <div class="secttitle" style="margin-top:.9rem">FINDINGS</div>
+        ${s.findings.map(f => flagRow(f, 'warn')).join('')}
+      ` : ''}
+      <div class="synthnote">Note: Exact SynthID detection requires Google DeepMind's proprietary model. This uses LSB & frequency domain analysis as approximation.</div>`;
+  }
+
+  else if (name === 'metadata') {
+    const m = r.metadata_analysis;
+    tc.innerHTML = `
+      <div class="secttitle">EXIF METADATA</div>
+      ${Object.entries(m.metadata).map(([k,v]) => metaRow(k, v, 'var(--cyan)')).join('')}
+      ${metaRow('Metadata Risk Score', m.metadata_risk + '%', m.metadata_risk > 60 ? 'var(--red)' : m.metadata_risk > 30 ? 'var(--amber)' : 'var(--green)')}
+      ${m.flags.length ? `
+        <div class="secttitle" style="margin-top:.9rem">FLAGS</div>
+        ${m.flags.map(f => {
+          const lvl = f.includes('Zero') || f.includes('AI tool') ? 'danger' : 'warn';
+          return flagRow(f, lvl);
+        }).join('')}
+      ` : '<div style="font-family:\'JetBrains Mono\',monospace;font-size:.7rem;color:var(--green);margin-top:.5rem">✓ No metadata flags — looks authentic</div>'}`;
+  }
+
+  else if (name === 'regions') {
+    const regs = r.regions;
+    tc.innerHTML = `
+      <div class="secttitle">HEATMAP REGION ANALYSIS</div>
+      ${regs.map(rg => `
+        <div class="brow2">
+          <div class="bname">${rg.name}</div>
+          <div class="btrack"><div class="bfill animated" style="width:${rg.score}%;background:${rg.level==='HIGH'?'var(--red)':rg.level==='MED'?'var(--amber)':'var(--green)'}"></div></div>
+          <span class="bval" style="color:${rg.level==='HIGH'?'var(--red)':rg.level==='MED'?'var(--amber)':'var(--green)'}">${rg.score}%</span>
+          <span class="rtag ${rg.level==='HIGH'?'hi':rg.level==='MED'?'med':'lo'}">${rg.level}</span>
+        </div>
+      `).join('')}
+      <div style="margin-top:1rem;padding:.7rem;background:rgba(0,229,255,.05);border:1px solid rgba(0,229,255,.15);border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:.68rem;color:var(--cyan)">
+        Total AI-modified area: ${r.ai_region_pct}%
+      </div>`;
+  }
+
+  else if (name === 'breakdown') {
+    const c = r.content_analysis;
+    tc.innerHTML = `
+      <div class="gencard">
+        <div class="genname">${c.generator}</div>
+        <div class="gendesc">${c.description}</div>
+        <div class="genconf">${c.confidence}% match · ${c.style}</div>
+        ${c.palette.length ? `<div class="palette">${c.palette.map(p=>`<div class="swatch" style="background:rgb(${p[0]},${p[1]},${p[2]})" title="rgb(${p[0]},${p[1]},${p[2]})"></div>`).join('')}</div>` : ''}
+      </div>
+      <div class="secttitle">AI CONTENT BREAKDOWN</div>
+      ${Object.entries(c.breakdown).map(([k,v]) => barRow(k, v, 'var(--cyan)')).join('')}
+      <div style="margin-top:.75rem;padding:.6rem .9rem;background:rgba(0,229,255,.06);border:1px solid rgba(0,229,255,.18);border-radius:8px;font-family:'JetBrains Mono',monospace;font-size:.7rem;color:var(--cyan)">
+        Overall AI content: ${c.overall_ai_pct}%
+      </div>`;
+  }
+
+  else if (name === 'metrics') {
+    const mx = det.metrics;
+    tc.innerHTML = `
+      <div class="secttitle">RAW FORENSIC METRICS</div>
+      ${Object.entries(mx).map(([k,v]) => metaRow(k.replace(/_/g,' '), v, 'var(--cyan)')).join('')}
+      <div class="secttitle" style="margin-top:1rem">SCORE CHART</div>
+      <div class="chartbox">
+        <canvas id="scoreChart" height="160"></canvas>
+      </div>`;
+    // Draw chart after DOM update
+    setTimeout(() => drawChart(det, r), 50);
+  }
+}
+
+function drawChart(det, r) {
+  if (chartInstance) { chartInstance.destroy(); chartInstance = null; }
+  const ctx = document.getElementById('scoreChart');
+  if (!ctx) return;
+  const color = det.category_color === 'red' ? '#ff1744' : det.category_color === 'amber' ? '#ffab00' : '#00ff88';
+  chartInstance = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['AI Score','Real Score','Confidence','Combined Risk','Meta Risk'],
+      datasets: [{
+        data: [det.ai_score, det.real_score, det.confidence, r.combined_risk_score, r.metadata_analysis.metadata_risk],
+        backgroundColor: [color+'cc','#00ff8899','#00e5ffaa','#d500f999','#ffab0099'],
+        borderRadius: 5,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      responsive:true, plugins:{legend:{display:false}},
+      scales:{
+        x:{ticks:{color:'#6b7280',font:{family:'JetBrains Mono',size:9}},grid:{color:'rgba(255,255,255,0.04)'}},
+        y:{min:0,max:100,ticks:{color:'#6b7280',font:{family:'JetBrains Mono',size:9}},grid:{color:'rgba(255,255,255,0.04)'}}
+      }
+    }
+  });
+}
+
+// ── HELPERS ───────────────────────────────────────────────────
+function barRow(label, val, color) {
+  return `<div class="brow2">
+    <div class="bname">${label}</div>
+    <div class="btrack"><div class="bfill animated" style="width:${val}%;background:${color};box-shadow:0 0 5px ${color}"></div></div>
+    <span class="bval" style="color:${color}">${val}%</span>
+  </div>`;
+}
+
+function metaRow(k, v, color='var(--cyan)') {
+  return `<div class="mrow">
+    <span class="mkey">${k}</span>
+    <span class="mval" style="color:${color}">${String(v).substring(0,40)}</span>
+  </div>`;
+}
+
+function flagRow(text, type) {
+  const icons = {warn:'⚠',danger:'🚨',info:'ℹ'};
+  return `<div class="frow ${type}">
+    <span class="ficon">${icons[type]||'⚠'}</span>
+    <span class="ftext">${text}</span>
+  </div>`;
+}
+
+// ── EXPORT REPORT ─────────────────────────────────────────────
+function exportReport() {
+  if (!currentResult) return;
+  const r = currentResult;
+  const det = r.detection;
+  const lines = [
+    '='.repeat(60),
+    '  AI IMAGE AUTHENTICITY ANALYZER - FORENSIC REPORT',
+    '='.repeat(60),
+    `  Scan ID   : ${r.scan_id}`,
+    `  File      : ${r.filename}`,
+    `  Timestamp : ${new Date(r.timestamp).toLocaleString()}`,
+    '',
+    'VERDICT',
+    '-'.repeat(40),
+    `  ${det.verdict}`,
+    `  Category   : ${det.category}`,
+    `  AI Score   : ${det.ai_score}%`,
+    `  Real Score : ${det.real_score}%`,
+    `  Confidence : ${det.confidence}%`,
+    `  Combined   : ${r.combined_risk_score}%`,
+    '',
+    'SYNTHID ANALYSIS',
+    '-'.repeat(40),
+    `  Status     : ${r.synthid_analysis.classification}`,
+    `  Score      : ${r.synthid_analysis.synthid_score}%`,
+    `  Watermark  : ${r.synthid_analysis.watermark_detected ? 'DETECTED' : 'NOT FOUND'}`,
+    '',
+    'METADATA FLAGS',
+    '-'.repeat(40),
+    ...(r.metadata_analysis.flags.map(f => `  ⚠ ${f}`)),
+    `  Risk Score : ${r.metadata_analysis.metadata_risk}%`,
+    '',
+    'WHY FLAGGED',
+    '-'.repeat(40),
+    ...(det.reasons.map(rn => `  • ${rn}`)),
+    '',
+    'AI REGION ANALYSIS',
+    '-'.repeat(40),
+    ...(r.regions.map(rg => `  ${rg.name.padEnd(15)}: ${rg.score}% [${rg.level}]`)),
+    '',
+    '='.repeat(60),
+    '  END OF FORENSIC REPORT',
+    '='.repeat(60),
+  ].join('\n');
+  const blob = new Blob([lines], {type:'text/plain'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `forensic-report-${r.scan_id}.txt`;
+  a.click();
+}
+
+// ── HISTORY ───────────────────────────────────────────────────
+async function loadHistory() {
+  try {
+    const res = await fetch(API + '/history');
+    const data = await res.json();
+    document.getElementById('h-count').textContent = data.total + ' scans recorded this session';
+    if (data.scans.length === 0) {
+      document.getElementById('h-list').innerHTML = `<div class="glass" style="padding:2rem;text-align:center"><div style="font-size:2rem;margin-bottom:.75rem">◎</div><p style="font-family:'JetBrains Mono',monospace;font-size:.75rem;color:rgba(100,130,170,.6)">No scan history. Analyze an image to get started.</p></div>`;
+      return;
+    }
+    const colors = {'AI Generated':'var(--red)','Suspicious':'var(--amber)','Likely Real':'var(--green)'};
+    document.getElementById('h-list').innerHTML = data.scans.map((s,i) => {
+      const c = colors[s.category] || 'var(--cyan)';
+      return `<div class="glass hitem" style="border-left-color:${c}">
+        <span style="font-family:'JetBrains Mono',monospace;font-size:.62rem;color:rgba(100,130,170,.4);min-width:1.5rem">#${i+1}</span>
+        <div style="flex:1"><div class="hfname">${s.filename||'image'}</div><div class="htime">${new Date(s.timestamp).toLocaleString()} · ID: ${s.scan_id}</div></div>
+        <div class="hscore" style="color:${c}">${s.ai_score}%</div>
+        <div class="hcat" style="background:${c}18;color:${c};border:1px solid ${c}35">${s.category}</div>
+      </div>`;
+    }).join('');
+  } catch {
+    document.getElementById('h-list').innerHTML = `<div style="font-family:'JetBrains Mono',monospace;font-size:.75rem;color:var(--red);padding:1rem">Failed to load history. Check backend.</div>`;
+  }
+}
+
+// ── LOGIN ─────────────────────────────────────────────────────
+async function doLogin() {
+  const u = document.getElementById('lu').value;
+  const p = document.getElementById('lp').value;
+  document.getElementById('lerr').style.display = 'none';
+  try {
+    const res = await fetch(API + '/auth/login', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({username:u, password:p})
+    });
+    if (!res.ok) throw new Error('Invalid credentials');
+    const data = await res.json();
+    localStorage.setItem('token', data.token);
+    document.getElementById('nav-login').textContent = data.user.toUpperCase();
+    document.getElementById('nav-login').style.color = 'var(--green)';
+    showPage('upload');
+  } catch {
+    document.getElementById('lerr').textContent = 'Invalid credentials. Try admin / forensics2025';
+    document.getElementById('lerr').style.display = 'block';
+  }
+}
+
+// ── INIT ──────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  // Check backend
+  fetch(API + '/health').catch(() => {
+    console.warn('Backend not reachable at', API);
+  });
+  showPage('upload');
+});
+</script>
+</body>
+</html>
